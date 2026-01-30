@@ -38,8 +38,7 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-# 🔴 Image name EXACTLY as you specified
-set_bg("Screenshot 2026-01-30 234139.png")
+set_bg("assets/Screenshot 2026-01-30 234139.png")
 
 # =========================
 # PAGE CONFIG
@@ -62,14 +61,16 @@ ipl2025, bowlers = load_data()
 # =========================
 # TOP NAVIGATION BUTTONS
 # =========================
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4 = st.columns(4)
 section = None
 
 if c1.button("📊 Dataset Overview"):
     section = "dataset"
-if c2.button("🎯 Bowling Analysis"):
+if c2.button("🔥 Runs & Match Analysis"):
+    section = "runs"
+if c3.button("🎯 Bowling Analysis"):
     section = "bowling"
-if c3.button("🧠 Advanced Insights"):
+if c4.button("🧠 Advanced Insights"):
     section = "advanced"
 
 # =========================
@@ -98,6 +99,55 @@ It contains wickets, overs, economy rate, strike rate, bowling average, and matc
 
 Indicators like four- and five-wicket hauls highlight match-defining spells, while player and team identifiers add contextual depth.
 The dataset is well-suited for identifying economical bowlers, death-over specialists, impact bowlers, and underrated performers.
+    """)
+
+# =========================
+# RUNS & MATCH ANALYSIS
+# (ONLY TOP 10 HIGH SCORING MATCHES)
+# =========================
+elif section == "runs":
+    st.header("🔥 Runs & Match Analysis")
+
+    ipl2025["total_score"] = (
+        ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
+    )
+
+    st.subheader("🔥 Top 10 Highest Scoring Matches (IPL 2025)")
+
+    top10 = (
+        ipl2025
+        .sort_values("total_score", ascending=False)
+        .head(10)
+    )
+
+    fig = px.bar(
+        top10,
+        x="match_id",
+        y="total_score",
+        color="total_score",
+        color_continuous_scale="Inferno",
+        hover_data=["team1", "team2", "venue", "stage"],
+        title="Top 10 Highest Scoring Matches of IPL 2025"
+    )
+
+    fig.update_layout(
+        xaxis_title="Match ID",
+        yaxis_title="Total Runs (1st + 2nd Innings)",
+        coloraxis_colorbar=dict(title="Total Runs")
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+**Analysis:**
+- These matches represent the **extreme high-scoring end** of IPL 2025.
+- Each match significantly exceeds the tournament’s average total score.
+- High totals are observed across **multiple venues and stages**, indicating that scoring explosions were not venue-specific.
+
+**Conclusion:**
+- A small set of ultra-high scoring matches disproportionately influences the overall scoring narrative.
+- Such matches expose bowling vulnerabilities, particularly in the middle and death overs.
+- Controlling run flow in these scenarios becomes a decisive tactical challenge for teams.
     """)
 
 # =========================
@@ -162,7 +212,7 @@ elif section == "advanced":
         y="SR",
         color="Team",
         hover_name="Player Name",
-        title="Strike Rate vs Economy Rate"
+        title="Strike Rate vs Economy (Death Overs)"
     )
 
     st.plotly_chart(fig, use_container_width=True)
