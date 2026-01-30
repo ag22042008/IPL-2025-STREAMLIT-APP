@@ -38,7 +38,8 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-set_bg("Screenshot 2026-01-30 234139.png")
+# 🔴 Image name EXACTLY as you specified
+set_bg("assets/Screenshot 2026-01-30 234139.png")
 
 # =========================
 # PAGE CONFIG
@@ -59,18 +60,16 @@ def load_data():
 ipl2025, bowlers = load_data()
 
 # =========================
-# TOP NAVIGATION
+# TOP NAVIGATION BUTTONS
 # =========================
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3 = st.columns(3)
 section = None
 
 if c1.button("📊 Dataset Overview"):
     section = "dataset"
-if c2.button("🔥 Runs Analysis"):
-    section = "runs"
-if c3.button("🎯 Bowling Analysis"):
+if c2.button("🎯 Bowling Analysis"):
     section = "bowling"
-if c4.button("🧠 Advanced Insights"):
+if c3.button("🧠 Advanced Insights"):
     section = "advanced"
 
 # =========================
@@ -82,82 +81,23 @@ if section == "dataset":
     st.markdown("""
 ### 📁 Match-Level Dataset Analysis
 
-The IPL 2025 match dataset consists of **74 matches and 22 columns**, capturing complete league and playoff information.
-It integrates numerical, categorical, and text-based attributes describing teams, venues, toss decisions, innings performance, and match outcomes.
+The IPL 2025 match dataset consists of **74 matches and 22 columns**, covering league and playoff fixtures.
+It integrates numerical, categorical, and text-based attributes capturing teams, venues, toss decisions, innings performance, and match outcomes.
 
-Numerical fields such as innings scores, wickets lost, balls remaining, and highest individual scores enable quantitative analysis.
+Numerical fields such as innings scores, wickets lost, balls remaining, and highest individual scores enable quantitative evaluation.
 Categorical features like stage, toss decision, and match result support outcome-based comparisons.
-Missing values appear mainly in wide-ball statistics and award-based columns, reflecting real match conditions such as abandoned or no-result games.
-Overall, the dataset is structurally rich and suitable for advanced match-flow and scoring analysis.
+Missing values appear mainly in wide-ball statistics and award-related columns, reflecting real match conditions such as abandoned or no-result games.
+Overall, the dataset is structurally rich and suitable for match-flow and strategic analysis.
     """)
 
     st.markdown("""
 ### 🎯 Bowling Dataset Analysis
 
-The bowling dataset contains **108 bowlers across 13 attributes**, with no missing values.
-It includes wickets, overs, economy rate, strike rate, bowling average, and match appearances, enabling multi-dimensional performance evaluation.
+The bowling dataset includes **108 bowlers across 13 attributes**, with no missing values.
+It contains wickets, overs, economy rate, strike rate, bowling average, and match appearances.
 
-Indicators like four- and five-wicket hauls highlight match-winning spells, while player and team identifiers provide contextual clarity.
-The dataset is ideal for identifying economical bowlers, death-over specialists, impact bowlers, and underrated performers.
-    """)
-
-# =========================
-# RUNS ANALYSIS
-# =========================
-elif section == "runs":
-    st.header("🔥 Runs & Match Analysis")
-
-    ipl2025["total_score"] = (
-        ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
-    )
-
-    fig = px.histogram(
-        ipl2025,
-        x="total_score",
-        nbins=12,
-        marginal="rug",
-        color_discrete_sequence=["#3F51B5"],
-        title="Distribution of Total Runs per Match"
-    )
-
-    mean_runs = ipl2025["total_score"].mean()
-    fig.add_vline(
-        x=mean_runs,
-        line_dash="dash",
-        line_color="red",
-        annotation_text=f"Mean ≈ {round(mean_runs,1)}",
-        annotation_position="top"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Most matches fall in the **300–420 run range**, indicating batting-friendly conditions.
-- High-scoring matches strongly influence the overall average.
-    """)
-
-    st.subheader("🔥 Top 10 Highest Scoring Matches")
-
-    top10 = ipl2025.sort_values("total_score", ascending=False).head(10)
-
-    fig = px.bar(
-        top10,
-        x="match_id",
-        y="total_score",
-        color="total_score",
-        color_continuous_scale="Inferno",
-        hover_data=["team1", "team2", "venue", "stage"],
-        title="Top 10 Highest Scoring Matches – IPL 2025"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- These matches form the extreme right tail of the scoring distribution.
-- They occurred across different venues and stages, not limited to one condition.
-- Such games place extreme pressure on bowling units, especially at the death.
+Indicators like four- and five-wicket hauls highlight match-defining spells, while player and team identifiers add contextual depth.
+The dataset is well-suited for identifying economical bowlers, death-over specialists, impact bowlers, and underrated performers.
     """)
 
 # =========================
@@ -166,6 +106,8 @@ elif section == "runs":
 elif section == "bowling":
     st.header("🎯 Bowling Analysis")
 
+    st.subheader("Top Economical Bowlers (Ascending Economy Rate)")
+
     eco = bowlers.sort_values("ECO").head(10)
 
     fig = px.bar(
@@ -173,7 +115,7 @@ elif section == "bowling":
         y="Player Name",
         x="ECO",
         color="Team",
-        title="Top Economical Bowlers (Ascending Economy Rate)"
+        title="Top Economical Bowlers"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -181,8 +123,10 @@ elif section == "bowling":
     st.markdown("""
 **Conclusion:**
 - Jaydev Unadkat and Jasprit Bumrah stand out for exceptional run control.
-- Economy rate remains a key selection metric.
+- Economy rate remains a critical selection metric for bowlers.
     """)
+
+    st.subheader("⚖️ Wickets vs Economy Rate")
 
     fig = px.scatter(
         bowlers,
@@ -198,8 +142,74 @@ elif section == "bowling":
 
     st.markdown("""
 **Conclusion:**
-- Bowlers trusted with more overs tend to maintain controlled economy.
+- Bowlers trusted with higher workloads generally maintain controlled economy.
 - Highly expensive bowlers are rarely used for extended spells.
     """)
 
-# ===============
+# =========================
+# ADVANCED INSIGHTS
+# =========================
+elif section == "advanced":
+    st.header("🧠 Advanced Bowling Insights")
+
+    st.subheader("Strike Rate vs Economy (Death Overs)")
+
+    death = bowlers[bowlers["OVR"] > 15]
+
+    fig = px.scatter(
+        death,
+        x="ECO",
+        y="SR",
+        color="Team",
+        hover_name="Player Name",
+        title="Strike Rate vs Economy Rate"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+**Conclusion:**
+- Jasprit Bumrah emerges as the most reliable death-over bowler.
+- Low economy combined with strong strike rate is extremely valuable.
+    """)
+
+    st.subheader("💥 Impact Bowlers (Fewer Overs, More Wickets)")
+
+    impact = bowlers[bowlers["OVR"] < 16].head(10)
+
+    fig = px.bar(
+        impact,
+        x="Player Name",
+        y="WKT",
+        color="Team",
+        title="Impact Bowlers"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+**Conclusion:**
+- Karn Sharma and Will Jacks deliver high impact despite limited overs.
+- Such bowlers provide tactical flexibility in T20 cricket.
+    """)
+
+    st.subheader("🧠 Underrated Bowlers")
+
+    underrated = bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
+    underrated = underrated.sort_values("ECO").head(5)
+
+    fig = px.bar(
+        underrated,
+        y="Player Name",
+        x="ECO",
+        color="Team",
+        title="Underrated Bowlers (Low Economy, Fewer Matches)"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+**Conclusion:**
+- Jaydev Unadkat stands out as the most underrated bowler of IPL 2025.
+- Several rotational bowlers delivered strong efficiency when given opportunities.
+    """)
