@@ -56,23 +56,6 @@ if section == "dataset":
     prog = ipl2025.sort_values("match_id").reset_index(drop=True)
     prog["match_number"] = range(1, len(prog) + 1)
 
-    fig = px.line(
-        prog,
-        x="match_number",
-        y="match_number",
-        markers=True,
-        title="IPL 2025 Tournament Progression"
-    )
-
-    fig.update_traces(line=dict(color="#00E5FF", width=4))
-    fig.update_layout(
-        xaxis_title="Match Sequence",
-        yaxis_title="Cumulative Matches"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
 **Conclusion:**
 - IPL 2025 followed a smooth and evenly paced schedule.
 - No abnormal clustering or gaps in match scheduling were observed.
