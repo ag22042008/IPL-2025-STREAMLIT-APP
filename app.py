@@ -39,7 +39,7 @@ def set_bg(image_file):
     )
 
 # 🔴 Image name EXACTLY as you specified
-set_bg("assets/Screenshot 2026-01-30 234139.png")
+set_bg("Screenshot 2026-01-30 234139.png")
 
 # =========================
 # PAGE CONFIG
