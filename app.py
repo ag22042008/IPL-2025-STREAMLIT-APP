@@ -3,9 +3,15 @@ import numpy as np
 import plotly.express as px
 import streamlit as st
 
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(page_title="IPL 2025 Analysis", layout="wide")
 st.title("🏏 IPL 2025 Interactive Data Analysis Dashboard")
 
+# =========================
+# LOAD DATA
+# =========================
 @st.cache_data
 def load_data():
     matches = pd.read_csv("matches.csv")
@@ -15,102 +21,66 @@ def load_data():
 
 ipl2025, bowlers = load_data()
 
-# =====================================================
-# TOP NAVIGATION (BUTTONS, NOT SIDEBAR)
-# =====================================================
-col1, col2, col3, col4, col5 = st.columns(5)
-
+# =========================
+# TOP NAVIGATION BUTTONS
+# =========================
+c1, c2, c3, c4 = st.columns(4)
 section = None
-if col1.button("📊 Dataset Overview"):
+
+if c1.button("📊 Dataset Overview"):
     section = "dataset"
-if col2.button("🏟️ Venue & Team"):
-    section = "venue"
-if col3.button("🔥 Runs Analysis"):
+if c2.button("🔥 Runs Analysis"):
     section = "runs"
-if col4.button("🎯 Bowling Analysis"):
+if c3.button("🎯 Bowling Analysis"):
     section = "bowling"
-if col5.button("🧠 Advanced Insights"):
+if c4.button("🧠 Advanced Insights"):
     section = "advanced"
 
-# =====================================================
+# =========================
 # DATASET OVERVIEW
-# =====================================================
+# =========================
 if section == "dataset":
     st.header("📊 Dataset Overview")
 
     total_matches = ipl2025["match_id"].nunique()
-    teams = pd.unique(ipl2025[["team1","team2"]].values.ravel())
+    teams = pd.unique(ipl2025[["team1", "team2"]].values.ravel())
     venues = ipl2025["venue"].unique()
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Matches", total_matches)
-    c2.metric("Total Teams", len(teams))
-    c3.metric("Total Venues", len(venues))
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total Matches", total_matches)
+    m2.metric("Total Teams", len(teams))
+    m3.metric("Total Venues", len(venues))
 
-    fig = px.histogram(
-        ipl2025,
-        x="match_id",
-        nbins=15,
-        color_discrete_sequence=["#00E5FF"],
-        title="Matches per Season (ID Frequency)"
+    st.subheader("📈 Tournament Progression (Matches Over Time)")
+
+    prog = ipl2025.sort_values("match_id").reset_index(drop=True)
+    prog["match_number"] = range(1, len(prog) + 1)
+
+    fig = px.line(
+        prog,
+        x="match_number",
+        y="match_number",
+        markers=True,
+        title="IPL 2025 Tournament Progression"
     )
+
+    fig.update_traces(line=dict(color="#00E5FF", width=4))
+    fig.update_layout(
+        xaxis_title="Match Sequence",
+        yaxis_title="Cumulative Matches"
+    )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- IPL 2025 consisted of 74 matches with a balanced league structure.
-- Match IDs are evenly distributed, confirming a standard tournament format.
+- IPL 2025 followed a smooth and evenly paced schedule.
+- No abnormal clustering or gaps in match scheduling were observed.
     """)
 
-# =====================================================
-# VENUE & TEAM ANALYSIS
-# =====================================================
-elif section == "venue":
-    st.header("🏟️ Venue & Team Analysis")
-
-    venue_counts = ipl2025["venue"].value_counts().reset_index()
-    venue_counts.columns = ["Venue","Matches"]
-
-    fig = px.bar(
-        venue_counts,
-        y="Venue",
-        x="Matches",
-        color="Matches",
-        color_continuous_scale="Turbo",
-        title="Matches Played per Venue"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Certain venues hosted significantly more matches, indicating preferred stadiums.
-- Scheduling reflects infrastructure capacity and audience demand.
-    """)
-
-    team_counts = (
-        ipl2025["team1"].value_counts() +
-        ipl2025["team2"].value_counts()
-    ).reset_index()
-    team_counts.columns = ["Team","Matches"]
-
-    fig = px.bar(
-        team_counts,
-        x="Team",
-        y="Matches",
-        color="Team",
-        title="Matches Played per Team"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- All teams played a similar number of matches.
-- Confirms fairness of the league format.
-    """)
-
-# =====================================================
+# =========================
 # RUNS ANALYSIS
-# =====================================================
+# =========================
 elif section == "runs":
     st.header("🔥 Runs & Match Analysis")
 
@@ -118,45 +88,47 @@ elif section == "runs":
         ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
     )
 
+    st.subheader("📊 Distribution of Total Runs per Match")
+
     fig = px.histogram(
         ipl2025,
         x="total_score",
-        nbins=20,
+        nbins=12,
+        marginal="rug",
         color_discrete_sequence=["#3F51B5"],
         title="Distribution of Total Runs per Match"
     )
-    st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Majority of matches fall between 300–420 total runs.
-- Indicates batting-friendly conditions in IPL 2025.
-    """)
+    mean_runs = ipl2025["total_score"].mean()
 
-    high = ipl2025[ipl2025["total_score"] >= 200]
-    fig = px.scatter(
-        high,
-        x="match_id",
-        y="total_score",
-        size="total_score",
-        color="total_score",
-        color_continuous_scale="Inferno",
-        hover_data=["team1","team2"],
-        title="High Scoring Matches (200+ Runs)"
+    fig.add_vline(
+        x=mean_runs,
+        line_dash="dash",
+        line_color="red",
+        annotation_text=f"Mean ≈ {round(mean_runs,1)}",
+        annotation_position="top"
     )
+
+    fig.update_layout(
+        xaxis_title="Total Runs per Match",
+        yaxis_title="Number of Matches"
+    )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- A significant number of matches crossed 200+ runs.
-- High-scoring games became the norm rather than exception.
+- Majority of matches fall in high scoring range 
+- The mean confirms batting-friendly conditions throughout IPL 2025.
     """)
 
-# =====================================================
+# =========================
 # BOWLING ANALYSIS
-# =====================================================
+# =========================
 elif section == "bowling":
     st.header("🎯 Bowling Analysis")
+
+    st.subheader("Top Economical Bowlers (Ascending Economy Rate)")
 
     eco = bowlers.sort_values("ECO").head(10)
 
@@ -165,15 +137,18 @@ elif section == "bowling":
         y="Player Name",
         x="ECO",
         color="Team",
-        title="Top Economical Bowlers (Ascending ECO)"
+        title="Top Economical Bowlers"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- Jaydev Unadkat and Jasprit Bumrah stand out for exceptional run control.
-- Economy rate remains a critical selection metric for bowlers.
+-  Jasprit Bumrah stand out for exceptional run control.
+- Economy rate remains a key selection metric for bowlers.
     """)
+
+    st.subheader("⚖️ Wickets vs Economy Rate")
 
     fig = px.scatter(
         bowlers,
@@ -184,52 +159,63 @@ elif section == "bowling":
         hover_name="Player Name",
         title="Wickets vs Economy Rate"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- Bowlers with lower economy generally maintain steady wicket-taking.
-- High wicket-takers with poor economy are rarely trusted with more overs.
+- Bowlers trusted with more overs generally maintain a balanced economy.
+- Highly expensive bowlers are rarely used for long spells.
     """)
 
-# =====================================================
+# =========================
 # ADVANCED INSIGHTS
-# =====================================================
+# =========================
 elif section == "advanced":
     st.header("🧠 Advanced Bowling Insights")
 
+    st.subheader("Strike Rate vs Economy (Death Overs)")
+
     death = bowlers[bowlers["OVR"] > 15]
+
     fig = px.scatter(
         death,
         x="ECO",
         y="SR",
         color="Team",
         hover_name="Player Name",
-        title="Strike Rate vs Economy (Death Overs)"
+        title="Strike Rate vs Economy Rate"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
 - Jasprit Bumrah emerges as the most reliable death-over bowler.
-- Low economy combined with strong strike rate is rare and valuable.
+- Low economy combined with strong strike rate is extremely valuable.
     """)
 
+    st.subheader("💥 Impact Bowlers (Fewer Overs, More Wickets)")
+
     impact = bowlers[bowlers["OVR"] < 16].head(10)
+
     fig = px.bar(
         impact,
         x="Player Name",
         y="WKT",
         color="Team",
-        title="Impact Bowlers (Fewer Overs, More Wickets)"
+        title="Impact Bowlers"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- Karn Sharma and Will Jacks deliver high impact despite limited overs.
-- These bowlers provide strong value in short spells.
+- Karn Sharma and Will Jacks provide high impact in short spells.
+- Such bowlers are valuable tactical assets.
     """)
+
+    st.subheader("🧠 Underrated Bowlers")
 
     underrated = bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
     underrated = underrated.sort_values("ECO").head(5)
@@ -239,12 +225,13 @@ elif section == "advanced":
         y="Player Name",
         x="ECO",
         color="Team",
-        title="Underrated Bowlers (Low ECO, Fewer Matches)"
+        title="Underrated Bowlers (Low Economy, Fewer Matches)"
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
 **Conclusion:**
-- Jaydev Unadkat is the most underrated bowler of IPL 2025.
-- Several part-time bowlers maintained excellent economy when given chances.
+- Jaydev Unadkat stands out as the most underrated bowler.
+- Several part-time bowlers delivered strong economy when given opportunities.
     """)
