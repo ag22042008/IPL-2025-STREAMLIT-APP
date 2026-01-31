@@ -59,18 +59,20 @@ def load_data():
 ipl2025, bowlers = load_data()
 
 # =========================
-# TOP NAVIGATION BUTTONS
+# TOP NAVIGATION
 # =========================
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 section = None
 
 if c1.button("📊 Dataset Overview"):
     section = "dataset"
-if c2.button("🔥 Runs & Match Analysis"):
-    section = "runs"
-if c3.button("🎯 Bowling Analysis"):
+if c2.button("🪙 Toss & Results"):
+    section = "toss"
+if c3.button("📈 Points & Batting"):
+    section = "batting"
+if c4.button("🎯 Bowling Analysis"):
     section = "bowling"
-if c4.button("🧠 Advanced Insights"):
+if c5.button("🧠 Advanced Insights"):
     section = "advanced"
 
 # =========================
@@ -80,75 +82,94 @@ if section == "dataset":
     st.header("📊 Dataset Overview & Structural Analysis")
 
     st.markdown("""
-### 📁 Match-Level Dataset Analysis
+The IPL 2025 match dataset consists of **74 matches and 22 columns**, integrating numerical, categorical, and text features.
+It captures match context such as teams, venues, stages, toss outcomes, innings scores, and match results.
 
-The IPL 2025 match dataset consists of **74 matches and 22 columns**, covering league and playoff fixtures.
-It integrates numerical, categorical, and text-based attributes capturing teams, venues, toss decisions, innings performance, and match outcomes.
-
-Numerical fields such as innings scores, wickets lost, balls remaining, and highest individual scores enable quantitative evaluation.
-Categorical features like stage, toss decision, and match result support outcome-based comparisons.
-Missing values appear mainly in wide-ball statistics and award-related columns, reflecting real match conditions such as abandoned or no-result games.
-Overall, the dataset is structurally rich and suitable for match-flow and strategic analysis.
+Several columns contain missing values (e.g., wide-ball data, awards, match winner), which naturally arise due to abandoned or no-result matches.
+Overall, the dataset is structurally sound and suitable for match-flow, scoring, and strategic analysis.
     """)
 
     st.markdown("""
-### 🎯 Bowling Dataset Analysis
-
-The bowling dataset includes **108 bowlers across 13 attributes**, with no missing values.
-It contains wickets, overs, economy rate, strike rate, bowling average, and match appearances.
-
-Indicators like four- and five-wicket hauls highlight match-defining spells, while player and team identifiers add contextual depth.
-The dataset is well-suited for identifying economical bowlers, death-over specialists, impact bowlers, and underrated performers.
+The bowling dataset contains **108 bowlers with 13 performance metrics** and **no missing values**.
+This ensures high analytical reliability for identifying economical bowlers, impact players, death-over specialists, and underrated performers.
     """)
 
 # =========================
-# RUNS & MATCH ANALYSIS
-# (ONLY TOP 10 HIGH SCORING MATCHES)
+# TOSS & RESULTS ANALYSIS
 # =========================
-elif section == "runs":
-    st.header("🔥 Runs & Match Analysis")
+elif section == "toss":
+    st.header("🪙 Toss & Match Results")
 
-    ipl2025["total_score"] = (
-        ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
-    )
-
-    st.subheader("🔥 Top 10 Highest Scoring Matches (IPL 2025)")
-
-    top10 = (
-        ipl2025
-        .sort_values("total_score", ascending=False)
-        .head(10)
-    )
+    toss_choice = ipl2025["toss_decision"].value_counts().reset_index()
+    toss_choice.columns = ["Decision", "Count"]
 
     fig = px.bar(
-        top10,
-        x="match_id",
-        y="total_score",
-        color="total_score",
-        color_continuous_scale="Inferno",
-        hover_data=["team1", "team2", "venue", "stage"],
-        title="Top 10 Highest Scoring Matches of IPL 2025"
+        toss_choice,
+        x="Decision",
+        y="Count",
+        color="Decision",
+        title="Toss Decision: Bat vs Field"
     )
-
-    fig.update_layout(
-        xaxis_title="Match ID",
-        yaxis_title="Total Runs (1st + 2nd Innings)",
-        coloraxis_colorbar=dict(title="Total Runs")
-    )
-
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
-**Analysis:**
-- These matches represent the **extreme high-scoring end** of IPL 2025.
-- Each match significantly exceeds the tournament’s average total score.
-- High totals are observed across **multiple venues and stages**, indicating that scoring explosions were not venue-specific.
-
 **Conclusion:**
-- A small set of ultra-high scoring matches disproportionately influences the overall scoring narrative.
-- Such matches expose bowling vulnerabilities, particularly in the middle and death overs.
-- Controlling run flow in these scenarios becomes a decisive tactical challenge for teams.
+- Teams showed a clear preference based on pitch and chasing trends.
+- Toss decisions reflect evolving T20 strategies.
     """)
+
+    toss_win = ipl2025[ipl2025["toss_winner"] == ipl2025["match_winner"]]
+    win_rate = round(len(toss_win) / len(ipl2025) * 100, 2)
+
+    st.markdown(f"""
+**Insight:**  
+Teams winning the toss also won the match **{win_rate}%** of the time, indicating a moderate toss advantage.
+    """)
+
+# =========================
+# POINTS TABLE + BATTING
+# =========================
+elif section == "batting":
+    st.header("📈 Points Table & Batting Analysis")
+
+    # Points Table
+    pts = ipl2025[ipl2025["match_winner"] != 0]["match_winner"].value_counts() * 2
+    ties = ipl2025[ipl2025["match_winner"] == 0]
+
+    for _, r in ties.iterrows():
+        pts[r["team1"]] = pts.get(r["team1"], 0) + 1
+        pts[r["team2"]] = pts.get(r["team2"], 0) + 1
+
+    pts = pts.sort_values(ascending=False).reset_index()
+    pts.columns = ["Team", "Points"]
+
+    fig = px.bar(
+        pts,
+        x="Team",
+        y="Points",
+        color="Points",
+        title="IPL 2025 Points Table"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Batting
+    bat = (
+        ipl2025[ipl2025["top_scorer"] != 0]
+        .groupby("top_scorer")["highscore"]
+        .max()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index()
+    )
+
+    fig = px.bar(
+        bat,
+        y="top_scorer",
+        x="highscore",
+        color="highscore",
+        title="Top Individual Scores (IPL 2025)"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # BOWLING ANALYSIS
@@ -156,27 +177,10 @@ elif section == "runs":
 elif section == "bowling":
     st.header("🎯 Bowling Analysis")
 
-    st.subheader("Top Economical Bowlers (Ascending Economy Rate)")
-
     eco = bowlers.sort_values("ECO").head(10)
-
-    fig = px.bar(
-        eco,
-        y="Player Name",
-        x="ECO",
-        color="Team",
-        title="Top Economical Bowlers"
-    )
-
+    fig = px.bar(eco, y="Player Name", x="ECO", color="Team",
+                 title="Top Economical Bowlers")
     st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Jaydev Unadkat and Jasprit Bumrah stand out for exceptional run control.
-- Economy rate remains a critical selection metric for bowlers.
-    """)
-
-    st.subheader("⚖️ Wickets vs Economy Rate")
 
     fig = px.scatter(
         bowlers,
@@ -187,14 +191,17 @@ elif section == "bowling":
         hover_name="Player Name",
         title="Wickets vs Economy Rate"
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Bowlers trusted with higher workloads generally maintain controlled economy.
-- Highly expensive bowlers are rarely used for extended spells.
-    """)
+    team_eco = bowlers.groupby("Team")["ECO"].mean().reset_index()
+    fig = px.bar(
+        team_eco,
+        x="Team",
+        y="ECO",
+        color="ECO",
+        title="Team-wise Average Economy Rate"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # ADVANCED INSIGHTS
@@ -202,64 +209,18 @@ elif section == "bowling":
 elif section == "advanced":
     st.header("🧠 Advanced Bowling Insights")
 
-    st.subheader("Strike Rate vs Economy (Death Overs)")
-
     death = bowlers[bowlers["OVR"] > 15]
-
-    fig = px.scatter(
-        death,
-        x="ECO",
-        y="SR",
-        color="Team",
-        hover_name="Player Name",
-        title="Strike Rate vs Economy (Death Overs)"
-    )
-
+    fig = px.scatter(death, x="ECO", y="SR", color="Team",
+                     hover_name="Player Name",
+                     title="Death Overs: Strike Rate vs Economy")
     st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Jasprit Bumrah emerges as the most reliable death-over bowler.
-- Low economy combined with strong strike rate is extremely valuable.
-    """)
-
-    st.subheader("💥 Impact Bowlers (Fewer Overs, More Wickets)")
 
     impact = bowlers[bowlers["OVR"] < 16].head(10)
-
-    fig = px.bar(
-        impact,
-        x="Player Name",
-        y="WKT",
-        color="Team",
-        title="Impact Bowlers"
-    )
-
+    fig = px.bar(impact, x="Player Name", y="WKT", color="Team",
+                 title="Impact Bowlers")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Karn Sharma and Will Jacks deliver high impact despite limited overs.
-- Such bowlers provide tactical flexibility in T20 cricket.
-    """)
-
-    st.subheader("🧠 Underrated Bowlers")
-
-    underrated = bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
-    underrated = underrated.sort_values("ECO").head(5)
-
-    fig = px.bar(
-        underrated,
-        y="Player Name",
-        x="ECO",
-        color="Team",
-        title="Underrated Bowlers (Low Economy, Fewer Matches)"
-    )
-
+    underrated = bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)].sort_values("ECO").head(5)
+    fig = px.bar(underrated, y="Player Name", x="ECO", color="Team",
+                 title="Underrated Bowlers")
     st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Jaydev Unadkat stands out as the most underrated bowler of IPL 2025.
-- Several rotational bowlers delivered strong efficiency when given opportunities.
-    """)
