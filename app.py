@@ -4,6 +4,15 @@ import streamlit as st
 import base64
 
 # =========================
+# PAGE CONFIG (MOBILE SAFE)
+# =========================
+st.set_page_config(
+    page_title="IPL 2025 Analysis",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# =========================
 # BACKGROUND IMAGE
 # =========================
 def set_bg(image_file):
@@ -30,20 +39,32 @@ def set_bg(image_file):
             background: rgba(0,0,0,0.6);
             z-index: -1;
         }}
+
         h1, h2, h3, h4, p {{
             color: #ffffff;
+        }}
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {{
+            h1 {{ font-size: 1.8rem; text-align: center; }}
+            h2 {{ font-size: 1.4rem; }}
+            h3 {{ font-size: 1.2rem; }}
+            p {{ font-size: 0.95rem; }}
+            .block-container {{
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }}
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
 
-set_bg("Screenshot 2026-01-30 234139.png")
+set_bg("assets/Screenshot 2026-01-30 234139.png")
 
 # =========================
-# PAGE CONFIG
+# TITLE
 # =========================
-st.set_page_config(page_title="IPL 2025 Analysis", layout="wide")
 st.title("🏏 IPL 2025 Interactive Data Analysis Dashboard")
 
 # =========================
@@ -59,78 +80,68 @@ def load_data():
 ipl2025, bowlers = load_data()
 
 # =========================
-# TOP NAVIGATION
+# MOBILE-SAFE NAVIGATION
 # =========================
-c1, c2, c3, c4, c5 = st.columns(5)
-section = None
+st.markdown("### 📍 Navigation")
 
-if c1.button("📊 Dataset Overview"):
+section = None
+if st.button("📊 Dataset Overview"):
     section = "dataset"
-if c2.button("🪙 Toss & Results"):
+if st.button("🪙 Toss & Results"):
     section = "toss"
-if c3.button("🔥 High Scoring Matches"):
+if st.button("🔥 High Scoring Matches"):
     section = "runs"
-if c4.button("📈 Points & Batting"):
+if st.button("📈 Points & Batting"):
     section = "batting"
-if c5.button("🎯 Bowling & Insights"):
+if st.button("🎯 Bowling & Insights"):
     section = "bowling"
 
 # =========================
-# DATASET OVERVIEW (TEXT)
+# DATASET OVERVIEW
 # =========================
 if section == "dataset":
     st.header("📊 Dataset Overview & Structural Analysis")
 
     st.markdown("""
-### 📁 Match-Level Dataset Analysis
-The IPL 2025 match dataset consists of **74 matches and 22 columns**, integrating numerical,
-categorical, and text-based features covering teams, venues, stages, toss decisions,
-innings performance, and results.
+**Match Dataset**
+- 74 matches, 22 columns
+- Numerical, categorical & text features
+- Missing values mostly due to no-result / abandoned matches
+- Suitable for scoring, toss impact & result analysis
 
-Missing values mainly appear in wide-ball statistics and award-related columns,
-reflecting no-result or abandoned matches. Overall, the dataset is structurally
-sound and suitable for strategic and performance analysis.
-    """)
-
-    st.markdown("""
-### 🎯 Bowling Dataset Analysis
-The bowling dataset includes **108 bowlers across 13 attributes**, with **no missing values**.
-It enables reliable evaluation of economy, wicket-taking ability, workload,
-and match impact across the season.
+**Bowling Dataset**
+- 108 bowlers, 13 attributes
+- No missing values
+- Reliable for economy, wickets & workload analysis
     """)
 
 # =========================
 # TOSS & RESULTS
 # =========================
 elif section == "toss":
-    st.header("🪙 Toss & Match Results Analysis")
+    st.header("🪙 Toss & Match Results")
 
-    toss_choice = ipl2025["toss_decision"].value_counts().reset_index()
-    toss_choice.columns = ["Decision", "Count"]
+    toss = ipl2025["toss_decision"].value_counts().reset_index()
+    toss.columns = ["Decision", "Count"]
 
-    fig = px.bar(
-        toss_choice,
-        x="Decision",
-        y="Count",
-        color="Decision",
-        title="Toss Decision: Bat vs Field"
-    )
+    fig = px.bar(toss, x="Decision", y="Count", color="Decision",
+                 title="Toss Decision: Bat vs Field")
     st.plotly_chart(fig, use_container_width=True)
 
     toss_win = ipl2025[ipl2025["toss_winner"] == ipl2025["match_winner"]]
     win_rate = round(len(toss_win) / len(ipl2025) * 100, 2)
 
     st.markdown(f"""
-**Conclusion:**
-- Toss decisions reflect evolving T20 strategies.
-- Teams winning the toss also won **{win_rate}%** of matches, indicating a moderate toss advantage.
+**Conclusion**
+- Toss advantage exists but is not decisive.
+- Toss winners won **{win_rate}%** of matches.
     """)
 
 # =========================
 # HIGH SCORING MATCHES
 # =========================
 elif section == "runs":
-    st.header("🔥 Top 10 Highest Scoring Matches (IPL 2025)")
+    st.header("🔥 Top 10 Highest Scoring Matches")
 
     ipl2025["total_score"] = (
         ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
@@ -145,24 +156,23 @@ elif section == "runs":
         color="total_score",
         color_continuous_scale="Inferno",
         hover_data=["team1", "team2", "venue", "stage"],
-        title="Top 10 Highest Scoring Matches of IPL 2025"
+        title="Top 10 Highest Scoring Matches – IPL 2025"
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
-**Analysis:**
-- These matches lie in the extreme right tail of the scoring spectrum.
-- All significantly exceed the season’s average total score.
-- High-scoring games occurred across multiple venues and stages.
+**Analysis**
+- These matches form the extreme high-scoring end of IPL 2025.
+- All exceed tournament average by a large margin.
 
-**Conclusion:**
-- A small number of ultra-high scoring matches disproportionately shape IPL 2025’s scoring narrative.
-- Such matches increase pressure on bowling units, especially in middle and death overs.
+**Conclusion**
+- A few ultra-high scoring matches dominate the season narrative.
+- Bowling discipline in middle & death overs is critical.
     """)
 
 # =========================
-# POINTS TABLE & BATTING
+# POINTS & BATTING
 # =========================
 elif section == "batting":
     st.header("📈 Points Table & Batting Analysis")
@@ -177,13 +187,8 @@ elif section == "batting":
     pts = pts.sort_values(ascending=False).reset_index()
     pts.columns = ["Team", "Points"]
 
-    fig = px.bar(
-        pts,
-        x="Team",
-        y="Points",
-        color="Points",
-        title="IPL 2025 Points Table"
-    )
+    fig = px.bar(pts, x="Team", y="Points", color="Points",
+                 title="IPL 2025 Points Table")
     st.plotly_chart(fig, use_container_width=True)
 
     bat = (
@@ -195,132 +200,63 @@ elif section == "batting":
         .reset_index()
     )
 
-    fig = px.bar(
-        bat,
-        y="top_scorer",
-        x="highscore",
-        color="highscore",
-        title="Top Individual Scores (IPL 2025)"
-    )
+    fig = px.bar(bat, y="top_scorer", x="highscore",
+                 color="highscore",
+                 title="Top Individual Scores")
     st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Conclusion:**
-- Consistently high individual scores indicate aggressive batting strategies.
-- A small group of batters dominated top-scoring performances across the season.
-    """)
 
 # =========================
 # BOWLING & ADVANCED INSIGHTS
 # =========================
 elif section == "bowling":
-    st.header("🎯 Bowling Analysis & Advanced Insights")
+    st.header("🎯 Bowling Analysis & Insights")
 
-    # Economical Bowlers
     eco = bowlers.sort_values("ECO").head(10)
-    fig = px.bar(
-        eco,
-        y="Player Name",
-        x="ECO",
-        color="Team",
-        title="Top Economical Bowlers"
-    )
+    fig = px.bar(eco, y="Player Name", x="ECO", color="Team",
+                 title="Most Economical Bowlers")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Jaydev Unadkat and Jasprit Bumrah lead in run containment.
-- Low economy bowlers are trusted with critical overs.
-    """)
+    st.markdown("**Conclusion:** Bumrah & Unadkat dominate run control.")
 
-    # Wickets vs Economy
     fig = px.scatter(
-        bowlers,
-        x="WKT",
-        y="ECO",
-        size="OVR",
-        color="Team",
-        hover_name="Player Name",
+        bowlers, x="WKT", y="ECO", size="OVR",
+        color="Team", hover_name="Player Name",
         title="Wickets vs Economy Rate"
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Bowlers with higher workloads generally maintain controlled economy.
-- Extremely expensive bowlers are rarely given extended spells.
-    """)
+    st.markdown("**Conclusion:** Expensive bowlers rarely get long spells.")
 
-    # Team-wise Economy
     team_eco = bowlers.groupby("Team")["ECO"].mean().reset_index()
-    fig = px.bar(
-        team_eco,
-        x="Team",
-        y="ECO",
-        color="ECO",
-        title="Team-wise Average Economy Rate"
-    )
+    fig = px.bar(team_eco, x="Team", y="ECO", color="ECO",
+                 title="Team-wise Average Economy")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- RCB excelled in run containment, while MI combined economy with wicket-taking.
-- Teams exhibit distinct bowling strategies based on squad composition.
-    """)
+    st.markdown("**Conclusion:** MI & RCB show strong bowling balance.")
 
-    # Death Overs
     death = bowlers[bowlers["OVR"] > 15]
-    fig = px.scatter(
-        death,
-        x="ECO",
-        y="SR",
-        color="Team",
-        hover_name="Player Name",
-        title="Death Overs: Strike Rate vs Economy"
-    )
+    fig = px.scatter(death, x="ECO", y="SR", color="Team",
+                     hover_name="Player Name",
+                     title="Death Overs: Economy vs Strike Rate")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Jasprit Bumrah emerges as the most reliable death-over bowler.
-- Low economy combined with strong strike rate is rare and valuable.
-    """)
+    st.markdown("**Conclusion:** Bumrah is the most reliable death bowler.")
 
-    # Impact Bowlers
     impact = bowlers[bowlers["OVR"] < 16].head(10)
-    fig = px.bar(
-        impact,
-        x="Player Name",
-        y="WKT",
-        color="Team",
-        title="Impact Bowlers (Fewer Overs, More Wickets)"
-    )
+    fig = px.bar(impact, x="Player Name", y="WKT", color="Team",
+                 title="Impact Bowlers")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Karn Sharma and Will Jacks deliver high impact despite limited overs.
-- Short, attacking spells can be match-defining.
-    """)
+    st.markdown("**Conclusion:** Short spells can be match-deciding.")
 
-    # Underrated Bowlers
     underrated = (
         bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
         .sort_values("ECO")
         .head(5)
     )
 
-    fig = px.bar(
-        underrated,
-        y="Player Name",
-        x="ECO",
-        color="Team",
-        title="Underrated Bowlers"
-    )
+    fig = px.bar(underrated, y="Player Name", x="ECO",
+                 color="Team", title="Underrated Bowlers")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Jaydev Unadkat stands out as the most underrated bowler of IPL 2025.
-- Several rotational bowlers delivered strong economy when given opportunities.
-    """)
+    st.markdown("**Conclusion:** Jaydev Unadkat stands out as underrated.")
