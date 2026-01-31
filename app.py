@@ -38,7 +38,7 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-set_bg("Screenshot 2026-01-30 234139.png")
+set_bg("assets/Screenshot 2026-01-30 234139.png")
 
 # =========================
 # PAGE CONFIG
@@ -68,12 +68,12 @@ if c1.button("📊 Dataset Overview"):
     section = "dataset"
 if c2.button("🪙 Toss & Results"):
     section = "toss"
-if c3.button("📈 Points & Batting"):
+if c3.button("🔥 High Scoring Matches"):
+    section = "runs"
+if c4.button("📈 Points & Batting"):
     section = "batting"
-if c4.button("🎯 Bowling Analysis"):
+if c5.button("🎯 Bowling & Insights"):
     section = "bowling"
-if c5.button("🧠 Advanced Insights"):
-    section = "advanced"
 
 # =========================
 # DATASET OVERVIEW (TEXT ONLY)
@@ -82,23 +82,35 @@ if section == "dataset":
     st.header("📊 Dataset Overview & Structural Analysis")
 
     st.markdown("""
-The IPL 2025 match dataset consists of **74 matches and 22 columns**, integrating numerical, categorical, and text features.
-It captures match context such as teams, venues, stages, toss outcomes, innings scores, and match results.
+### 📁 Match-Level Dataset Analysis
 
-Several columns contain missing values (e.g., wide-ball data, awards, match winner), which naturally arise due to abandoned or no-result matches.
-Overall, the dataset is structurally sound and suitable for match-flow, scoring, and strategic analysis.
+The IPL 2025 match dataset consists of **74 matches and 22 columns**, covering league and playoff fixtures.
+It integrates numerical, categorical, and text-based attributes capturing teams, venues, toss decisions,
+innings performance, and match outcomes.
+
+Numerical variables such as innings scores, wickets lost, balls remaining, and highest individual scores
+enable quantitative evaluation, while categorical features like stage, toss decision, and match result
+support outcome-based comparisons. Missing values occur primarily in wide-ball statistics and
+award-related columns, reflecting abandoned or no-result matches.
+
+Overall, the dataset is structurally rich and suitable for match-flow, scoring, and strategic analysis.
     """)
 
     st.markdown("""
-The bowling dataset contains **108 bowlers with 13 performance metrics** and **no missing values**.
-This ensures high analytical reliability for identifying economical bowlers, impact players, death-over specialists, and underrated performers.
+### 🎯 Bowling Dataset Analysis
+
+The bowling dataset includes **108 bowlers across 13 attributes** with **no missing values**.
+It captures wickets, overs, economy rate, strike rate, bowling average, and match appearances.
+
+This dataset enables reliable identification of economical bowlers, death-over specialists,
+impact bowlers, and underrated performers across IPL 2025.
     """)
 
 # =========================
-# TOSS & RESULTS ANALYSIS
+# TOSS & RESULTS
 # =========================
 elif section == "toss":
-    st.header("🪙 Toss & Match Results")
+    st.header("🪙 Toss & Match Results Analysis")
 
     toss_choice = ipl2025["toss_decision"].value_counts().reset_index()
     toss_choice.columns = ["Decision", "Count"]
@@ -112,18 +124,59 @@ elif section == "toss":
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-**Conclusion:**
-- Teams showed a clear preference based on pitch and chasing trends.
-- Toss decisions reflect evolving T20 strategies.
-    """)
-
     toss_win = ipl2025[ipl2025["toss_winner"] == ipl2025["match_winner"]]
     win_rate = round(len(toss_win) / len(ipl2025) * 100, 2)
 
     st.markdown(f"""
-**Insight:**  
-Teams winning the toss also won the match **{win_rate}%** of the time, indicating a moderate toss advantage.
+**Conclusion:**
+- Toss decisions reflect evolving T20 strategies.
+- Teams winning the toss also won the match **{win_rate}%** of the time, indicating a moderate toss advantage.
+    """)
+
+# =========================
+# HIGH SCORING MATCHES (KEPT)
+# =========================
+elif section == "runs":
+    st.header("🔥 Top 10 Highest Scoring Matches (IPL 2025)")
+
+    ipl2025["total_score"] = (
+        ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
+    )
+
+    top10 = (
+        ipl2025
+        .sort_values("total_score", ascending=False)
+        .head(10)
+    )
+
+    fig = px.bar(
+        top10,
+        x="match_id",
+        y="total_score",
+        color="total_score",
+        color_continuous_scale="Inferno",
+        hover_data=["team1", "team2", "venue", "stage"],
+        title="Top 10 Highest Scoring Matches of IPL 2025"
+    )
+
+    fig.update_layout(
+        xaxis_title="Match ID",
+        yaxis_title="Total Runs (1st + 2nd Innings)",
+        coloraxis_colorbar=dict(title="Total Runs")
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("""
+**Analysis:**
+- These matches form the extreme right tail of the scoring distribution.
+- All significantly exceed the tournament average total score.
+- High totals occur across multiple venues and stages, not limited to a single condition.
+
+**Conclusion:**
+- A small number of ultra-high scoring matches disproportionately shape IPL 2025’s scoring narrative.
+- Such games expose bowling vulnerabilities, particularly during middle and death overs.
+- Controlling run flow in these scenarios becomes a decisive tactical factor.
     """)
 
 # =========================
@@ -132,7 +185,6 @@ Teams winning the toss also won the match **{win_rate}%** of the time, indicatin
 elif section == "batting":
     st.header("📈 Points Table & Batting Analysis")
 
-    # Points Table
     pts = ipl2025[ipl2025["match_winner"] != 0]["match_winner"].value_counts() * 2
     ties = ipl2025[ipl2025["match_winner"] == 0]
 
@@ -152,7 +204,6 @@ elif section == "batting":
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Batting
     bat = (
         ipl2025[ipl2025["top_scorer"] != 0]
         .groupby("top_scorer")["highscore"]
@@ -172,14 +223,19 @@ elif section == "batting":
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# BOWLING ANALYSIS
+# BOWLING + ADVANCED INSIGHTS
 # =========================
 elif section == "bowling":
-    st.header("🎯 Bowling Analysis")
+    st.header("🎯 Bowling Analysis & Advanced Insights")
 
     eco = bowlers.sort_values("ECO").head(10)
-    fig = px.bar(eco, y="Player Name", x="ECO", color="Team",
-                 title="Top Economical Bowlers")
+    fig = px.bar(
+        eco,
+        y="Player Name",
+        x="ECO",
+        color="Team",
+        title="Top Economical Bowlers"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     fig = px.scatter(
@@ -203,24 +259,38 @@ elif section == "bowling":
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# =========================
-# ADVANCED INSIGHTS
-# =========================
-elif section == "advanced":
-    st.header("🧠 Advanced Bowling Insights")
-
     death = bowlers[bowlers["OVR"] > 15]
-    fig = px.scatter(death, x="ECO", y="SR", color="Team",
-                     hover_name="Player Name",
-                     title="Death Overs: Strike Rate vs Economy")
+    fig = px.scatter(
+        death,
+        x="ECO",
+        y="SR",
+        color="Team",
+        hover_name="Player Name",
+        title="Death Overs: Strike Rate vs Economy"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     impact = bowlers[bowlers["OVR"] < 16].head(10)
-    fig = px.bar(impact, x="Player Name", y="WKT", color="Team",
-                 title="Impact Bowlers")
+    fig = px.bar(
+        impact,
+        x="Player Name",
+        y="WKT",
+        color="Team",
+        title="Impact Bowlers"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    underrated = bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)].sort_values("ECO").head(5)
-    fig = px.bar(underrated, y="Player Name", x="ECO", color="Team",
-                 title="Underrated Bowlers")
+    underrated = (
+        bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
+        .sort_values("ECO")
+        .head(5)
+    )
+
+    fig = px.bar(
+        underrated,
+        y="Player Name",
+        x="ECO",
+        color="Team",
+        title="Underrated Bowlers"
+    )
     st.plotly_chart(fig, use_container_width=True)
