@@ -60,7 +60,7 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-set_bg("Screenshot 2026-01-30 234139.png")
+set_bg("ChatGPT Image Feb 1, 2026, 10_26_21 AM.png")
 
 # =========================
 # TITLE
