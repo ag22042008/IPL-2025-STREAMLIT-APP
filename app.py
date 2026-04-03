@@ -1,262 +1,207 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-import base64
 
 # =========================
-# PAGE CONFIG (MOBILE SAFE)
+# PAGE CONFIG
 # =========================
 st.set_page_config(
-    page_title="IPL 2025 Analysis",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_title="IPL 2025 Analytics Dashboard",
+    layout="wide"
 )
 
 # =========================
-# BACKGROUND IMAGE
-# =========================
-def set_bg(image_file):
-    with open(image_file, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
-
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: -1;
-        }}
-
-        h1, h2, h3, h4, p {{
-            color: #ffffff;
-        }}
-
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {{
-            h1 {{ font-size: 1.8rem; text-align: center; }}
-            h2 {{ font-size: 1.4rem; }}
-            h3 {{ font-size: 1.2rem; }}
-            p {{ font-size: 0.95rem; }}
-            .block-container {{
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }}
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-set_bg("ChatGPT Image Feb 1, 2026, 10_26_21 AM.png")
-
-# =========================
-# TITLE
-# =========================
-st.title("🏏 IPL 2025 Interactive Data Analysis Dashboard")
-
-# =========================
-# LOAD DATA
+# LOAD DATA (CLEAN + SAFE)
 # =========================
 @st.cache_data
 def load_data():
     matches = pd.read_csv("matches.csv")
     bowlers = pd.read_csv("IPL2025Bowlers.csv")
-    matches.fillna(0, inplace=True)
+
+    # Handle missing values safely
+    num_cols = matches.select_dtypes(include=['number']).columns
+    str_cols = matches.select_dtypes(include=['object', 'string']).columns
+
+    matches[num_cols] = matches[num_cols].fillna(0)
+    matches[str_cols] = matches[str_cols].fillna("Unknown")
+
     return matches, bowlers
 
-ipl2025, bowlers = load_data()
+ipl, bowlers = load_data()
 
 # =========================
-# MOBILE-SAFE NAVIGATION
+# SIDEBAR FILTERS
 # =========================
-st.markdown("### 📍 Navigation")
+st.sidebar.title("🔍 Filters")
 
-section = None
-if st.button("📊 Dataset Overview"):
-    section = "dataset"
-if st.button("🪙 Toss & Results"):
-    section = "toss"
-if st.button("🔥 High Scoring Matches"):
-    section = "runs"
-if st.button("📈 Points & Batting"):
-    section = "batting"
-if st.button("🎯 Bowling & Insights"):
-    section = "bowling"
+teams = sorted(set(ipl["team1"]).union(set(ipl["team2"])))
+selected_team = st.sidebar.selectbox("Select Team", ["All"] + teams)
 
-# =========================
-# DATASET OVERVIEW
-# =========================
-if section == "dataset":
-    st.header("📊 Dataset Overview & Structural Analysis")
+venues = ["All"] + sorted(ipl["venue"].unique())
+selected_venue = st.sidebar.selectbox("Select Venue", venues)
 
-    st.markdown("""
-**Match Dataset**
-- 74 matches, 22 columns
-- Numerical, categorical & text features
-- Missing values mostly due to no-result / abandoned matches
-- Suitable for scoring, toss impact & result analysis
+# Apply filters
+filtered = ipl.copy()
 
-**Bowling Dataset**
-- 108 bowlers, 13 attributes
-- No missing values
-- Reliable for economy, wickets & workload analysis
-    """)
+if selected_team != "All":
+    filtered = filtered[
+        (filtered["team1"] == selected_team) |
+        (filtered["team2"] == selected_team)
+    ]
+
+if selected_venue != "All":
+    filtered = filtered[filtered["venue"] == selected_venue]
 
 # =========================
-# TOSS & RESULTS
+# TITLE
 # =========================
-elif section == "toss":
-    st.header("🪙 Toss & Match Results")
+st.title("🏏 IPL 2025 Data Analytics Dashboard")
 
-    toss = ipl2025["toss_decision"].value_counts().reset_index()
-    toss.columns = ["Decision", "Count"]
+st.markdown("""
+### 📌 Project Overview
+- End-to-end IPL 2025 data analysis
+- Includes EDA, insights & performance metrics
+- Built using Streamlit + Plotly
+""")
 
-    fig = px.bar(toss, x="Decision", y="Count", color="Decision",
-                 title="Toss Decision: Bat vs Field")
-    st.plotly_chart(fig, use_container_width=True)
+# =========================
+# KPIs
+# =========================
+col1, col2, col3 = st.columns(3)
 
-    toss_win = ipl2025[ipl2025["toss_winner"] == ipl2025["match_winner"]]
-    win_rate = round(len(toss_win) / len(ipl2025) * 100, 2)
+col1.metric("Total Matches", len(filtered))
+col2.metric("Total Teams", len(teams))
+col3.metric("Venues", filtered["venue"].nunique())
 
-    st.markdown(f"""
-**Conclusion**
-- Toss advantage exists but is not decisive.
-- Toss winners won **{win_rate}%** of matches.
-    """)
+# =========================
+# TOSS ANALYSIS
+# =========================
+st.subheader("🪙 Toss Decision Analysis")
+
+toss = filtered["toss_decision"].value_counts().reset_index()
+toss.columns = ["Decision", "Count"]
+
+fig = px.pie(toss, names="Decision", values="Count", hole=0.4)
+st.plotly_chart(fig, use_container_width=True)
+
+# Toss impact
+valid_matches = filtered[filtered["match_winner"] != "Unknown"]
+toss_win = valid_matches[
+    valid_matches["toss_winner"] == valid_matches["match_winner"]
+]
+
+if len(valid_matches) > 0:
+    win_rate = round(len(toss_win) / len(valid_matches) * 100, 2)
+else:
+    win_rate = 0
+
+st.info(f"Toss winners win **{win_rate}%** of matches.")
 
 # =========================
 # HIGH SCORING MATCHES
 # =========================
-elif section == "runs":
-    st.header("🔥 Top 10 Highest Scoring Matches")
+st.subheader("🔥 High Scoring Matches")
 
-    ipl2025["total_score"] = (
-        ipl2025["first_ings_score"] + ipl2025["second_ings_score"]
-    )
+filtered["total_score"] = (
+    filtered["first_ings_score"] + filtered["second_ings_score"]
+)
 
-    top10 = ipl2025.sort_values("total_score", ascending=False).head(10)
+top_matches = filtered.sort_values("total_score", ascending=False).head(10)
 
-    fig = px.bar(
-        top10,
-        x="match_id",
-        y="total_score",
-        color="total_score",
-        color_continuous_scale="Inferno",
-        hover_data=["team1", "team2", "venue", "stage"],
-        title="Top 10 Highest Scoring Matches – IPL 2025"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-**Analysis**
-- These matches form the extreme high-scoring end of IPL 2025.
-- All exceed tournament average by a large margin.
-
-**Conclusion**
-- A few ultra-high scoring matches dominate the season narrative.
-- Bowling discipline in middle & death overs is critical.
-    """)
+fig = px.bar(
+    top_matches,
+    x="match_id",
+    y="total_score",
+    color="total_score",
+    hover_data=["team1", "team2", "venue"],
+    title="Top 10 Matches by Total Score"
+)
+st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# POINTS & BATTING
+# POINTS TABLE
 # =========================
-elif section == "batting":
-    st.header("📈 Points Table & Batting Analysis")
+st.subheader("📈 Points Table")
 
-    pts = ipl2025[ipl2025["match_winner"] != 0]["match_winner"].value_counts() * 2
-    ties = ipl2025[ipl2025["match_winner"] == 0]
+valid = filtered[filtered["match_winner"] != "Unknown"]
 
-    for _, r in ties.iterrows():
-        pts[r["team1"]] = pts.get(r["team1"], 0) + 1
-        pts[r["team2"]] = pts.get(r["team2"], 0) + 1
+points = valid["match_winner"].value_counts() * 2
+points = points.reset_index()
+points.columns = ["Team", "Points"]
 
-    pts = pts.sort_values(ascending=False).reset_index()
-    pts.columns = ["Team", "Points"]
-
-    fig = px.bar(pts, x="Team", y="Points", color="Points",
-                 title="IPL 2025 Points Table")
-    st.plotly_chart(fig, use_container_width=True)
-
-    bat = (
-        ipl2025[ipl2025["top_scorer"] != 0]
-        .groupby("top_scorer")["highscore"]
-        .max()
-        .sort_values(ascending=False)
-        .head(10)
-        .reset_index()
-    )
-
-    fig = px.bar(bat, y="top_scorer", x="highscore",
-                 color="highscore",
-                 title="Top Individual Scores")
-    st.plotly_chart(fig, use_container_width=True)
+fig = px.bar(points, x="Team", y="Points", color="Points")
+st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# BOWLING & ADVANCED INSIGHTS
+# TOP BATSMEN
 # =========================
-elif section == "bowling":
-    st.header("🎯 Bowling Analysis & Insights")
+st.subheader("🏏 Top Batting Performances")
 
-    eco = bowlers.sort_values("ECO").head(10)
-    fig = px.bar(eco, y="Player Name", x="ECO", color="Team",
-                 title="Most Economical Bowlers")
-    st.plotly_chart(fig, use_container_width=True)
+bat = (
+    filtered[filtered["top_scorer"] != "Unknown"]
+    .groupby("top_scorer")["highscore"]
+    .max()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
 
-    st.markdown("**Conclusion:** Bumrah & Unadkat dominate run control.")
+fig = px.bar(
+    bat,
+    y="top_scorer",
+    x="highscore",
+    color="highscore",
+    title="Top Individual Scores"
+)
+st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.scatter(
-        bowlers, x="WKT", y="ECO", size="OVR",
-        color="Team", hover_name="Player Name",
-        title="Wickets vs Economy Rate"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+# =========================
+# BOWLING ANALYSIS
+# =========================
+st.subheader("🎯 Bowling Analysis")
 
-    st.markdown("**Conclusion:** Expensive bowlers rarely get long spells.")
+eco = bowlers.sort_values("ECO").head(10)
 
-    team_eco = bowlers.groupby("Team")["ECO"].mean().reset_index()
-    fig = px.bar(team_eco, x="Team", y="ECO", color="ECO",
-                 title="Team-wise Average Economy")
-    st.plotly_chart(fig, use_container_width=True)
+fig = px.bar(
+    eco,
+    y="Player Name",
+    x="ECO",
+    color="Team",
+    title="Best Economy Bowlers"
+)
+st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("**Conclusion:** MI & RCB show strong bowling balance.")
+# Scatter
+fig = px.scatter(
+    bowlers,
+    x="WKT",
+    y="ECO",
+    size="OVR",
+    color="Team",
+    hover_name="Player Name",
+    title="Wickets vs Economy"
+)
+st.plotly_chart(fig, use_container_width=True)
 
-    death = bowlers[bowlers["OVR"] > 15]
-    fig = px.scatter(death, x="ECO", y="SR", color="Team",
-                     hover_name="Player Name",
-                     title="Death Overs: Economy vs Strike Rate")
-    st.plotly_chart(fig, use_container_width=True)
+# =========================
+# ADVANCED INSIGHTS
+# =========================
+st.subheader("📊 Advanced Insights")
 
-    st.markdown("**Conclusion:** Bumrah is the most reliable death bowler.")
+team_eco = bowlers.groupby("Team")["ECO"].mean().reset_index()
 
-    impact = bowlers[bowlers["OVR"] < 16].head(10)
-    fig = px.bar(impact, x="Player Name", y="WKT", color="Team",
-                 title="Impact Bowlers")
-    st.plotly_chart(fig, use_container_width=True)
+fig = px.bar(
+    team_eco,
+    x="Team",
+    y="ECO",
+    color="ECO",
+    title="Team-wise Bowling Economy"
+)
+st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("**Conclusion:** Short spells can be match-deciding.")
-
-    underrated = (
-        bowlers[(bowlers["MAT"] < 8) & (bowlers["MAT"] > 3)]
-        .sort_values("ECO")
-        .head(5)
-    )
-
-    fig = px.bar(underrated, y="Player Name", x="ECO",
-                 color="Team", title="Underrated Bowlers")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("**Conclusion:** Jaydev Unadkat stands out as underrated.")
+# =========================
+# FOOTER
+# =========================
+st.markdown("---")
+st.markdown("### 🚀 Built by Aditya Gupta")
+st.markdown("Streamlit • Plotly • Data Analytics • Machine Learning Ready")
